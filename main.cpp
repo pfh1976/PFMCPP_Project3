@@ -465,6 +465,8 @@ struct Battery
 Battery::Battery()
 {
     std::cout << "Battery being constructed!" << std::endl;
+
+    std::cout << "Charging speed initialized to " << chargingSpeed << std::endl;
 }
 
 bool Battery::powerSpeaker()
