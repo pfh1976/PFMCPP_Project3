@@ -69,10 +69,6 @@ int main()
 
 //call Example::main() in main()
 
-
-
-
-
 struct Guitar
 {
 
@@ -111,6 +107,8 @@ struct Guitar
     String stringG;
     String stringB;
     String stringEs;
+
+    float setStringTensionToE4(String string);
 
 };
 
@@ -167,6 +165,24 @@ int Guitar::connectToAmplifier(std::string chord)
     return lowPowerMode;
 }
 
+float Guitar::setStringTensionToE4(String string)
+{
+    while(string.tension < 30.0f)
+    {
+        ++string.tension;
+        
+        if( 0.0f < (13.181f - string.tension) < 0.5f )
+        {
+            std::cout << "String tension " << string.tension << " closest to E4" << std::endl;
+            
+            return string.tension;
+        }
+
+    }
+
+    return 0.0f;
+}
+
 struct WindMill
 {
     WindMill();
@@ -181,6 +197,8 @@ struct WindMill
     float convertMechEnergyToElEnergy(float mechanicalEnergy = 50.0f);
     bool rotateBlades(float rotationalSpeed = 100.0f);
     bool connectToGrid();
+
+    void accumulateMechanicalEnergy(float mechanicalEnergyPerDay, float dailyQuota);
 
 };
 
@@ -233,6 +251,26 @@ bool WindMill::connectToGrid()
     return isConnectedToGrid;
 }
 
+void WindMill::accumulateMechanicalEnergy(float mechanicalEnergy, float dailyQuota)
+{
+    float estimatedMechanicalEnergy = mechanicalEnergyGeneratedPerDay;
+    int index = 0;
+    
+    while(estimatedMechanicalEnergy < dailyQuota)
+    {
+        estimatedMechanicalEnergy += mechanicalEnergy;
+        index += 1;
+    }
+
+    std::cout << "Mechanical energy per day before: " << mechanicalEnergyGeneratedPerDay << std::endl;
+    std::cout << index << " cycles remain to complete the daily quota" << std::endl;
+
+    mechanicalEnergyGeneratedPerDay += mechanicalEnergy;
+
+    std::cout << "Mechanical energy per day after: " << mechanicalEnergyGeneratedPerDay << std::endl;
+    
+}
+
 struct MotorCycle
 {
     MotorCycle();
@@ -267,6 +305,8 @@ struct MotorCycle
 
     Wheel frontWheel;
     Wheel backWheel;
+
+    int monitorWheelPressure(Wheel wheelA, float threshold, int iterations);
 };
 
 MotorCycle::MotorCycle()
@@ -341,6 +381,36 @@ void MotorCycle::getNewWheels(MotorCycle::Wheel wheelA)
     backWheel = wheelA;
 }
 
+int MotorCycle::monitorWheelPressure(Wheel wheelA, float threshold, int iterations)
+{
+    float wheelPressure = wheelA.currentPressure;
+    float diff;
+
+    for(int i = 0; i < iterations; ++i)
+    {
+        diff = frontWheel.currentPressure - wheelPressure;
+
+        if(diff > threshold)
+        {
+            wheelPressure += 0.5f;
+            std::cout << "Increasing wheel pressure to " << wheelPressure << std::endl;
+        }
+        else if( diff < threshold)
+        {
+            wheelPressure -= 0.5f;
+            std::cout << "Decreasing wheel pressure to " << wheelPressure << std::endl;
+        }
+        else
+        {
+            std::cout << "Wheel pressure calibrated after " << i << " iterations" << std::endl;
+            wheelA.currentPressure = wheelPressure;
+            return i;
+        }
+    }
+    
+    return -1;
+}
+
 struct DrillSet
 {
     DrillSet();
@@ -354,6 +424,8 @@ struct DrillSet
     bool canDrillConcrete(std::string drillbitMaterial); // confirm whether or not the drill bit can drill concrete
     void setDirectionOfRotation(int direction = -1); // left= -1, right = 1
     void setRotatorySpeed(float angularSpeed = 2.0f);
+
+    float getMaxAngularSpeed(float currentPower, float powerLimit, float speedIncrement);
     
 };
 
@@ -386,6 +458,21 @@ void DrillSet::setRotatorySpeed(float angularSpeedA)
     angularSpeed = angularSpeedA;
 }
 
+float DrillSet::getMaxAngularSpeed(float currentPower, float powerLimit, float speedIncrement)
+{
+    float localAngularSpeed = 0.0f;
+    
+    while(currentPower < powerLimit)
+    {
+        localAngularSpeed += speedIncrement;
+        setRotatorySpeed(localAngularSpeed); // angularSpeed changes to localAngularSpeed
+        ++currentPower;
+        std::cout << "Power: " << currentPower << " results in (local) angular speed: " << localAngularSpeed << std::endl;
+    }
+    
+    return angularSpeed;
+}
+
 struct Speaker
 {
     Speaker();
@@ -400,6 +487,8 @@ struct Speaker
     void playSound();
     float powerConsumption(float voltageInput = 1.0f);
     void setPlaybackLevel(unsigned int volumeIndex);
+
+    float findMaxLoudness(float distortionLimit);
 
 };
 
@@ -428,6 +517,24 @@ void Speaker::setPlaybackLevel(unsigned int volumeIndex)
         loudness -= 6.0f;
 }
 
+float Speaker::findMaxLoudness(float distortionLimit)
+{
+    float localDistortion = distortion;
+    
+    while(localDistortion < distortionLimit)
+    {
+        localDistortion += 0.2f;
+        ++loudness; // 1 loudness unit per 0.2 increment in distortion
+
+        std::cout << "Loudness level increased to: " << loudness << " while still complying with distortion" << std::endl;
+
+        if(loudness > 100)
+            return loudness;
+    }
+    
+    return loudness;
+}
+
 struct Microphone
 {
     Microphone();
@@ -442,6 +549,8 @@ struct Microphone
     void captureSound();
     void setInputGain(float gain);
     float getSensitivity(); // return microphone sensitivity
+
+    float estimateMaxInputGain(float, float, float);    
 };
 
 Microphone::Microphone()
@@ -478,14 +587,38 @@ float Microphone::getSensitivity()
     return sensitivity;
 }
 
+float Microphone::estimateMaxInputGain(float minVoltage, float inputIncrement, float dBBeforeAOP)
+{
+    int steps = 0;
+    float diff;
+    const float soundPressureLevelPerPa = 94.0;
+    float soundPressure = minVoltage * inputGain + soundPressureLevelPerPa + sensitivity;
+
+    while(soundPressure < acousticOverloadPoint)
+    {
+        ++steps;
+        inputGain *= inputIncrement;
+        soundPressure = minVoltage * inputGain + soundPressureLevelPerPa + sensitivity;
+        diff = acousticOverloadPoint - soundPressure;
+
+        std::cout << diff << "dB to reach MIC acoustic overload point" << std::endl;
+        if(diff < dBBeforeAOP)
+            return inputGain;
+    }
+
+    std::cout << "Could not estimate proper MIC gain. Setting gain to 0" << std::endl;
+    
+    return 0.0f;
+}
+
 struct Battery
 {
     Battery();
     // Initialize variables in class
-    float operatingTime{ 3.5f };
+    float operatingTime{ 24.0f };
     std::string technologyPrinciple{ "XM3" };
     bool isBatteryRechargeable{ true };
-    float chargingSpeed{ 5.0f };
+    float chargingSpeed{ 2.0f };
     float diameter{ 3.0f };
     bool isConnectedToSpeaker{ false };
     bool isConnectedToMic{ false };
@@ -493,6 +626,8 @@ struct Battery
     bool powerSpeaker(); // provide power to speaker
     bool powerMicrophone(); // provide power to microphones
     float readCapacity(); // read the current battery's capacity
+
+    void charge(float operatingTime);
 };
 
 Battery::Battery()
@@ -524,6 +659,18 @@ float Battery::readCapacity()
     return operatingTime;
 }
 
+void Battery::charge(float threshold)
+{
+    while(operatingTime < threshold)
+    {
+        operatingTime += chargingSpeed;
+
+        if(operatingTime > 10)
+            std::cout << "Battery charged for " << operatingTime << " operation" << std::endl;
+    }
+        
+}
+
 struct Antenna
 {
     Antenna();
@@ -537,6 +684,8 @@ struct Antenna
     bool setRemoteControl();
     bool enableAudioStreaming();
     float powerConsumption(Battery batteryA, float voltageInput = 1.0f);
+
+    int tuneRadioFrequency(float, float, float, int);
 };
 
 Antenna::Antenna() : // Initialize in initializer list
@@ -575,6 +724,38 @@ float Antenna::powerConsumption(Battery batteryA, float voltageInput)
     return batteryA.operatingTime + ( voltageInput * voltageInput );
 }
 
+int Antenna::tuneRadioFrequency(float radioFrequency, float factor, float tolerance, int totalIterations)
+{
+    if(factor <= 1.0f)
+    {
+        std::cout << "Factor should be greater than 1.0" << std::endl;
+        return -1;
+    }
+    float ratio = tuningRadioFrequency / radioFrequency;
+
+    for(int i = 0; i < totalIterations; ++i)
+    {
+        if(ratio > (1.0f + tolerance))
+        {
+            radioFrequency *= factor;
+        }
+        else if(ratio < (1.0f - tolerance))
+        {
+            radioFrequency /= factor;
+        }
+        else
+        {
+            std::cout << "Radio frequency tuned according to specs after " << i << " attempts" << std::endl;
+            return i;
+        }
+        ratio = tuningRadioFrequency / radioFrequency;
+        std::cout << "ratio= " << ratio << std::endl;
+    }
+
+    std::cout << "Failed to tune radio frequency" << std::endl;
+    return -1;
+}
+
 struct MicroControllerUnit
 {
     MicroControllerUnit();
@@ -584,9 +765,17 @@ struct MicroControllerUnit
     unsigned int ramSize;
     unsigned int numberInputPorts;
 
+    struct InputPort
+    {
+        bool isConnected = false;
+        InputPort(bool status) : isConnected(status) { }
+    };
+
     std::string fetchInstructionsFromMemory(std::string memoryType = "RAM");
     unsigned int decodeInstruction(std::string instruction = "Idle");
     void executeCommand(unsigned int numericCommand = 0);
+
+    int reconnectInputPort(unsigned int, unsigned int);
     
 };
 
@@ -642,6 +831,35 @@ void MicroControllerUnit::executeCommand(unsigned int numericCommand)
     std::cout << "The numeric command is: " << numericCommand << std::endl;
 }
 
+int MicroControllerUnit::reconnectInputPort(unsigned int retries, unsigned int unusedPort)
+{
+    if(unusedPort > numberInputPorts)
+    {
+        std::cout << "All ports are busy" << std::endl;
+        return -1;
+    }
+    
+    InputPort inputPort(false);
+    
+    for(unsigned int i = 0; i < retries; ++i)
+    {
+        if(inputPort.isConnected)
+        {
+            std::cout << "Port connection valid" << std::endl;
+            return 1;
+        }
+        else
+        {
+            std::cout << "Port connection failed" << std::endl;
+        }
+
+        if(i == unusedPort)
+            inputPort.isConnected = true;
+    }
+
+    return -1;
+}
+
 struct HearingAid
 {
     HearingAid();
@@ -654,6 +872,8 @@ struct HearingAid
     void amplifyAudioSignals(Microphone microphoneA, float gain);
     void listenToMusic();
     bool connectToSmartphone(std::string handShakingID = "ABAB");
+
+    void predictBatteryOperatingTime(float dischargeRate, float minimumLevel);
     
 };
 
@@ -691,6 +911,20 @@ bool HearingAid::connectToSmartphone(std::string handShakingID)
     return false;
 }
 
+void HearingAid::predictBatteryOperatingTime(float dischargeRate, float minimumLevel)
+{
+    float localOperatingTime = battery.operatingTime;
+    int hours = 0;
+    
+    while( localOperatingTime > minimumLevel )
+    {
+        localOperatingTime -= dischargeRate;
+        ++hours;
+    }
+
+    std::cout << "It will take about " << hours << " hrs for the HA-battery to reach minimum level" << std::endl;
+}
+
 /*
  MAKE SURE YOU ARE NOT ON THE MASTER BRANCH
 
@@ -724,7 +958,7 @@ int main()
     guitar.playSolo();
     guitar.connectToAmplifier("A#");
 
-    windMill.convertMechEnergyToElEnergy(24.56f);
+    windMill.convertMechEnergyToElEnergy(1.0f);
     windMill.rotateBlades(64.0f);
     windMill.connectToGrid();
 
@@ -767,6 +1001,49 @@ int main()
     std::cout << "What is the battery tech. principle? " << battery.technologyPrinciple << std::endl;
     std::cout << "The current instruction from the MCU is " << instructionFromMCU << std::endl;
     std::cout << "Is the battery of the hearing aid rechargeable? " << (hearingAid.battery.isBatteryRechargeable ? "Yes" : "No") << std::endl;
+
+    std::cout << "\n ================ START Project3 Part5\n" << std::endl;
+
+    // Guitar UDT
+    std::cout << "String tension before: " << guitar.stringEs.tension << std::endl;
+    guitar.setStringTensionToE4(guitar.stringEs);
+    std::cout << "String tension after: " << guitar.stringEs.tension << std::endl;
+
+    // WindMill UDT
+    windMill.accumulateMechanicalEnergy(50.0f, 500.0f);
+
+    // MotorCycle UDT
+    MotorCycle::Wheel frontWheel;
+    frontWheel.currentPressure = 29.5f;
+    int n = motorCycle.monitorWheelPressure(frontWheel, 0.5f, 20);
+
+    std::cout << (n >= 0 ? "Wheel pressure properly calibrated" : "Failed to calibrate wheel pressure") << std::endl;
+
+    // Drillset UDT
+    drillSet.getMaxAngularSpeed(1.0f, 10.0f, 0.6f);
+
+    // Speaker UDT
+    speaker.findMaxLoudness(9.0f);
+
+    // Microphone UDT
+    microphone.estimateMaxInputGain(2.0f, 1.2f, 20.0f);
+
+    // Battery UDT
+    battery.operatingTime = 2.0f;
+    std::cout << "Battery time BEFORE charging: " << battery.operatingTime << std::endl;
+    battery.charge(24.0f);
+    std::cout << "Battery time AFTER charging: " << battery.operatingTime << std::endl;
+
+    // Antenna UDT
+    antenna.tuneRadioFrequency(1.5f, 1.1f, 0.1f, 20);
+
+    // MicroController UDT
+    microControllerUnit.reconnectInputPort(10, 3);
+
+    // Hearing aid UDT
+    hearingAid.predictBatteryOperatingTime(2.0f, 2.0f);
+    
+    std::cout << "========== END Project3 Part5" << std::endl;
     
     std::cout << "good to go!" << std::endl;
 }
